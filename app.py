@@ -1,30 +1,108 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+
+from flask import Flask, render_template, request
 import subprocess
+import sys
+import platform
+import io
+import os
 
 app = Flask(__name__)
-CORS(app)  # Enables Cross-Origin Requests for all routes
 
-@app.route("/")
+@app.route("/", methods=["GET", "POST"])
 def home():
-    return "Code Editor is Running!"
+    output = None
+    user_code = ""
+    selected_language = "python"  # Default language
 
-@app.route("/run", methods=["POST"])
-def run_code():
-    data = request.json
-    code = data.get("code")
+    if request.method == "POST":
+        user_code = request.form.get("code")
+        selected_language = request.form.get("language")
+        
+        if selected_language == "python":
+            output = run_python_code(user_code)
+        elif selected_language == "cpp":
+            output = run_cpp_code(user_code)
+        elif selected_language == "vb":
+            output = run_vb_code(user_code)
+        else:
+            output = "Unsupported language"
     
-    with open("script.py", "w") as f:
-        f.write(code)
+    return render_template("index.html", output=output, code=user_code, language=selected_language)
 
+def run_python_code(code):
     try:
-        result = subprocess.run(["python3", "script.py"], capture_output=True, text=True, shell=True)
-        output = result.stdout if result.stdout else result.stderr
-        return jsonify({"output": output})
+        old_stdout = sys.stdout
+        sys.stdout = io.StringIO()
+        exec(code)
+        output = sys.stdout.getvalue()
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        output = f"Error: {str(e)}"
+    finally:
+        sys.stdout = old_stdout
+    return output
+
+def run_cpp_code(code):
+    try:
+        with open("temp.cpp", "w") as file:
+            file.write(code)
+        
+        compile_process = subprocess.run(
+            ["g++", "temp.cpp", "-o", "temp"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        
+        if compile_process.returncode != 0:
+            return f"Compilation Error: {compile_process.stderr.decode()}"
+        
+        executable = "temp.exe" if platform.system() == "Windows" else "./temp"
+        
+        run_process = subprocess.run(
+            [executable], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        
+        if run_process.returncode != 0:
+            return f"Runtime Error: {run_process.stderr.decode()}"
+        
+        return run_process.stdout.decode()
+    except Exception as e:
+        return f"Error: {str(e)}"
+    finally:
+        # Cleanup temp files
+        if os.path.exists("temp.cpp"):
+            os.remove("temp.cpp")
+        if os.path.exists("temp.exe"):
+            os.remove("temp.exe")
+
+def run_vb_code(code):
+    try:
+        with open("temp.vb", "w") as file:
+            file.write(code)
+        
+        compile_process = subprocess.run(
+            ["vbc", "temp.vb", "/out:temp.exe"],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        
+        if compile_process.returncode != 0:
+            return f"Compilation Error: {compile_process.stderr.decode()}"
+        
+        run_process = subprocess.run(
+            ["temp.exe"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        
+        if run_process.returncode != 0:
+            return f"Runtime Error: {run_process.stderr.decode()}"
+        
+        return run_process.stdout.decode()
+    except Exception as e:
+        return f"Error: {str(e)}"
+    finally:
+        # Cleanup temp files
+        if os.path.exists("temp.vb"):
+            os.remove("temp.vb")
+        if os.path.exists("temp.exe"):
+            os.remove("temp.exe")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
-
+    app.run(debug=True)
 
