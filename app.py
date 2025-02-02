@@ -16,7 +16,7 @@ def run_code():
     language = data.get('language')
 
     # File extensions for different languages
-    extensions = {"python": "py", "cpp": "cpp", "vb": "vb"}
+    extensions = {"python": "py", "cpp": "cpp"}
     ext = extensions.get(language, "txt")
 
     # Create a temporary file with the user's code
@@ -27,8 +27,7 @@ def run_code():
     # Command to execute the code
     commands = {
         "python": ["python3", file_name],
-        "cpp": ["g++", file_name, "-o", "temp.out", "&&", "./temp.out"],
-        "vb": ["vbc", file_name]  # Assuming Mono or VB.NET installed
+        "cpp": ["g++", file_name, "-o", "temp.out", "&&", "./temp.out"]
     }
 
     # Execute the command and capture the output
@@ -41,7 +40,7 @@ def run_code():
             else:
                 result = compile_result
         else:
-            # Run directly for Python or Visual Basic
+            # Run directly for Python
             result = subprocess.run(commands[language], capture_output=True, text=True)
 
         output = result.stdout if result.returncode == 0 else result.stderr
