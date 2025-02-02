@@ -1,15 +1,22 @@
+document.getElementById("runButton").addEventListener("click", async function() {
+    console.log("Run Button Clicked");
 
-document.getElementById('code-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const code = document.getElementById('code').value;
-    const language = document.getElementById('language').value;
+    try {
+        const response = await fetch("https://your-render-app.com/run", {  // Replace with your Render URL
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ code: "print('Hello, World!')", language: "python" })
+        });
 
-    const response = await fetch('/run', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, language })
-    });
+        console.log("Response Status:", response.status);
 
-    const result = await response.json();
-    document.getElementById('output').innerText = result.output;
+        const data = await response.json();
+        console.log("Response Data:", data);
+
+        document.getElementById("output").innerText = data.output || "Error running code";
+    } catch (error) {
+        console.error("Fetch Error:", error);
+        document.getElementById("output").innerText = "Network error!";
+    }
 });
+
