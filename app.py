@@ -9,7 +9,7 @@ app = Flask(__name__)
 def home():
     return render_template('index.html')
 
-@app.route('/run', methods=['POST'])
+@app.route('/run', methods=['POST'])  # Ensure the route accepts POST requests
 def run_code():
     data = request.json
     code = data.get('code')
