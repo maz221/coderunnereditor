@@ -9,16 +9,15 @@
 <body>
   <h1>Code Editor</h1>
 
-  <!-- Removed method="POST" to let JavaScript handle submission -->
   <form id="codeForm">
     <label for="language">Select Language:</label>
     <select id="language" name="language">
-      <option value="python" {% if language == 'python' %}selected{% endif %}>Python</option>
-      <option value="cpp" {% if language == 'cpp' %}selected{% endif %}>C++</option>
+      <option value="python">Python</option>
+      <option value="cpp">C++</option>
     </select>
     <br><br>
 
-    <textarea name="code" id="editor" rows="10" cols="50">{{ code }}</textarea>
+    <textarea name="code" id="editor" rows="10" cols="50"></textarea>
     <br><br>
 
     <button type="submit">Run Code</button>
@@ -27,28 +26,24 @@
 
   <div id="output">
     <h3>Output:</h3>
-    <pre id="outputText">{{ output }}</pre>
+    <pre id="outputText"></pre>
   </div>
 
   <script>
     // Function to reset the form fields and clear the output
     function resetForm() {
-      document.getElementById("codeForm").reset(); // Resets the form to default values
-      document.getElementById("editor").value = ""; // Clears the code editor
-      document.getElementById("outputText").textContent = ""; // Clears the output field
+      document.getElementById("codeForm").reset();
+      document.getElementById("editor").value = "";
+      document.getElementById("outputText").textContent = "";
     }
 
-    // Wait for the DOM to load before attaching the event listener
     document.addEventListener("DOMContentLoaded", function() {
       document.getElementById("codeForm").addEventListener("submit", function(e) {
-        // Prevent the default form submission which reloads the page
         e.preventDefault();
 
-        // Retrieve the code and selected language from the form
         const code = document.getElementById("editor").value;
         const language = document.getElementById("language").value;
 
-        // Send a POST request to the '/run' endpoint with JSON payload
         fetch("/run", {
           method: "POST",
           headers: {
@@ -56,18 +51,11 @@
           },
           body: JSON.stringify({ code, language })
         })
-        .then(response => {
-          if (!response.ok) {
-            throw new Error("Network response was not ok");
-          }
-          return response.json();
-        })
+        .then(response => response.json())
         .then(data => {
-          // Update the output field with the response from the server
           document.getElementById("outputText").textContent = data.output;
         })
         .catch(error => {
-          // Display any errors that occur during the request
           document.getElementById("outputText").textContent = "Error: " + error;
         });
       });
