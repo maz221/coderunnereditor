@@ -1,108 +1,61 @@
 
-from flask import Flask, render_template, request
+from flask import Flask, request, jsonify, render_template
 import subprocess
-import sys
-import platform
-import io
 import os
 
 app = Flask(__name__)
 
-@app.route("/", methods=["GET", "POST"])
+@app.route('/')
 def home():
-    output = None
-    user_code = ""
-    selected_language = "python"  # Default language
+    return render_template('index.html')
 
-    if request.method == "POST":
-        user_code = request.form.get("code")
-        selected_language = request.form.get("language")
-        
-        if selected_language == "python":
-            output = run_python_code(user_code)
-        elif selected_language == "cpp":
-            output = run_cpp_code(user_code)
-        elif selected_language == "vb":
-            output = run_vb_code(user_code)
+@app.route('/run', methods=['POST'])
+def run_code():
+    data = request.json
+    code = data.get('code')
+    language = data.get('language')
+
+    # File extensions for different languages
+    extensions = {"python": "py", "cpp": "cpp"}
+    ext = extensions.get(language, "txt")
+
+    # Create a temporary file with the user's code
+    file_name = f"temp.{ext}"
+    with open(file_name, "w") as f:
+        f.write(code)
+
+    # Command to execute the code
+    commands = {
+        "python": ["python3", file_name],
+        "cpp": ["g++", file_name, "-o", "temp.out", "&&", "./temp.out"]
+    }
+
+    # Execute the command and capture the output
+    try:
+        if language == "cpp":
+            # Compile and run for C++
+            compile_result = subprocess.run(["g++", file_name, "-o", "temp.out"], capture_output=True, text=True)
+            if compile_result.returncode == 0:
+                result = subprocess.run("./temp.out", capture_output=True, text=True)
+            else:
+                result = compile_result
         else:
-            output = "Unsupported language"
-    
-    return render_template("index.html", output=output, code=user_code, language=selected_language)
+            # Run directly for Python
+            result = subprocess.run(commands[language], capture_output=True, text=True)
 
-def run_python_code(code):
-    try:
-        old_stdout = sys.stdout
-        sys.stdout = io.StringIO()
-        exec(code)
-        output = sys.stdout.getvalue()
+        output = result.stdout if result.returncode == 0 else result.stderr
     except Exception as e:
-        output = f"Error: {str(e)}"
+        output = str(e)
     finally:
-        sys.stdout = old_stdout
-    return output
+        # Clean up temporary files
+        if os.path.exists(file_name):
+            os.remove(file_name)
+        if os.path.exists("temp.out"):
+            os.remove("temp.out")
 
-def run_cpp_code(code):
-    try:
-        with open("temp.cpp", "w") as file:
-            file.write(code)
-        
-        compile_process = subprocess.run(
-            ["g++", "temp.cpp", "-o", "temp"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        
-        if compile_process.returncode != 0:
-            return f"Compilation Error: {compile_process.stderr.decode()}"
-        
-        executable = "temp.exe" if platform.system() == "Windows" else "./temp"
-        
-        run_process = subprocess.run(
-            [executable], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        
-        if run_process.returncode != 0:
-            return f"Runtime Error: {run_process.stderr.decode()}"
-        
-        return run_process.stdout.decode()
-    except Exception as e:
-        return f"Error: {str(e)}"
-    finally:
-        # Cleanup temp files
-        if os.path.exists("temp.cpp"):
-            os.remove("temp.cpp")
-        if os.path.exists("temp.exe"):
-            os.remove("temp.exe")
+    return jsonify({"output": output})
 
-def run_vb_code(code):
-    try:
-        with open("temp.vb", "w") as file:
-            file.write(code)
-        
-        compile_process = subprocess.run(
-            ["vbc", "temp.vb", "/out:temp.exe"],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        
-        if compile_process.returncode != 0:
-            return f"Compilation Error: {compile_process.stderr.decode()}"
-        
-        run_process = subprocess.run(
-            ["temp.exe"], stdout=subprocess.PIPE, stderr=subprocess.PIPE
-        )
-        
-        if run_process.returncode != 0:
-            return f"Runtime Error: {run_process.stderr.decode()}"
-        
-        return run_process.stdout.decode()
-    except Exception as e:
-        return f"Error: {str(e)}"
-    finally:
-        # Cleanup temp files
-        if os.path.exists("temp.vb"):
-            os.remove("temp.vb")
-        if os.path.exists("temp.exe"):
-            os.remove("temp.exe")
-
-if __name__ == "__main__":
-    app.run(debug=True)
+if __name__ == '__main__':
+    from waitress import serve  # Alternative: Gunicorn
+    serve(app, host="0.0.0.0", port=8080)
 
